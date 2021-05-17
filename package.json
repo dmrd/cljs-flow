@@ -1,0 +1,21 @@
+{
+  "name": "cljs-flow",
+  "version": "0.0.1",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "shadow-cljs": "2.12.5"
+  },
+  "dependencies": {
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "react-flow-renderer": "^9.5.4",
+    "react-refresh": "0.8.1",
+    "shadow-cljs": "^2.11.5"
+  },
+  "scripts": {
+    "watch": "npx shadow-cljs watch app",
+    "release": "npx shadow-cljs release app",
+    "build-report": "npx shadow-cljs run shadow.cljs.build-report app target/build-report.html"
+  }
+}
