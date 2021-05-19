@@ -1,3 +1,15 @@
 #+TITLE: Cljs Flow
 
 Flowchart editor using [[https://reactflow.dev/][ReactFlow]].
+
+* Next up
+
+- [x] Deleting nodes
+- [x] Adding nodes
+- [ ] deleting edges
+- [ ] Automatic layout
+- [ ] Dual representation with text editor
+  - [ ] Investigate tiptap
+- [ ] Look into custom node types
+- [ ] Flow-based programming
+  - [ ] Embed code into each node.
