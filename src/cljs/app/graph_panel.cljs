@@ -3,6 +3,7 @@
             [reagent.dom :as rdom]
             [clojure.string :as str]
             [applied-science.js-interop :as j]
+            [app.layout :as layout-lib]
             ["react-flow-renderer" :default ReactFlow :refer [Background Controls ReactFlowProvider]]))
 (def react-flow-pro (r/adapt-react-class ReactFlowProvider))
 (def react-flow (r/adapt-react-class ReactFlow))
@@ -17,11 +18,21 @@
 (defn- make-edge [source target]
   {:id (str source "->" target) :source source :target target})
 
-(defn- add-edge [graph source target]
-  (swap! graph conj (make-edge source target)))
+(defn- add-edge [!graph source target]
+  (swap! !graph conj (make-edge source target)))
 
-(defn- add-node [graph node]
-  (swap! graph conj node))
+(defn- add-node [!graph node]
+  (swap! !graph conj node))
+
+(defn update-node-position
+  "Update node for node-id to given position inside graph atom."
+  [!graph node-id x y]
+  (swap! !graph #(mapv (fn [el]
+                         (if (= (:id el) node-id)
+                           (assoc el :position {:x x :y y})
+                           el))
+
+                       %)))
 
 (defn- remove-node [graph node]
   ; TODO
@@ -36,7 +47,8 @@
      :style {:fontSize 14
              :fontFamily "monospace"
              :wordBreak "break-word"
-             :width 200}
+             :width 200
+             :height 40}
      :data {:label (r/as-element
                     [:div
                      label [:br]
@@ -69,7 +81,6 @@
   "Remove given node from graph."
   [hovered-node-id elements event]
   (let [id (j/get-in event [0 :id])]
-    (js/console.log (str "Delete " id))
     ; Remove from list
     (reset! hovered-node-id nil)
     (swap! elements (fn [elems]
@@ -103,8 +114,8 @@
   )
 
 (defn- on-node-mouse-enter [elements hovered-node-id _ node]
-  (reset! hovered-node-id (.-id node)) ; Note tht node will be a js object
-  (js/console.log (.-id node)))
+  (reset! hovered-node-id (.-id node)) ; Note that node is an js object, hence .- accessor
+  )
 
 (defn- on-node-mouse-leave [elements hovered-node-id _ node]
   (reset! hovered-node-id nil))
@@ -121,11 +132,15 @@
      :y (- client-y top)}))
 
 (defn- on-pane-click [!panel-state !graph event]
-  (js/console.log event)
   (let [coords (get-coordinates @(r/cursor !panel-state [:ref]) event)
         node (make-node "new node" (:x coords) (:y coords))]
-    (js/console.log coords
-                    (swap! !graph conj node))))
+    (swap! !graph conj node)))
+
+(defn on-node-drag-stop [!graph event node]
+  (let [id (.-id node)
+        x (.. node -position -x)
+        y (.. node -position -y)]
+    (update-node-position !graph id x y)))
 
 (defn- flow-panel []
   (let [hovered-node-id (r/atom nil)
@@ -135,6 +150,7 @@
                               :ref nil})
         !hovered-node-id (r/cursor !panel-state [:hovered-node-id])
         handle-keys* (partial handle-keys !panel-state !graph)]
+
     (r/create-class
      {:component-did-mount (fn []
                              (js/window.addEventListener "keydown" handle-keys*))
@@ -142,6 +158,10 @@
                                 (js/window.removeEventListener "keydown" handle-keys*))
       :reagent-render (fn []
                         [:div
+                         [:input {:type "button"
+                                  :value "Layout"
+                                  :on-click #(do
+                                               (swap! !graph layout-lib/layout-graph))}]
                          [react-flow-pro
                           [react-flow
                            {:default-position [10 10]
@@ -156,23 +176,17 @@
                             :elements @!graph
                             :on-node-mouse-enter (partial on-node-mouse-enter !graph !hovered-node-id)
                             :on-node-mouse-leave (partial on-node-mouse-leave !graph !hovered-node-id)
+                            :on-node-drag-stop (fn [event node] (on-node-drag-stop !graph event node))
                             :on-pane-click (partial on-pane-click !panel-state !graph)
                             :on-connect #(let [source (.-source %)
                                                target (.-target %)]
-                                           (js/console.log %)
                                            (swap! !graph conj {:id (str/join "->" [source target]) :source source :target target}))
                             :on-elements-remove (fn [event] (on-element-remove !hovered-node-id !graph event))
                             :delete-key-code 8
-                            :ref (fn [elem] (do
-                                              (reset! (r/cursor !panel-state [:ref]) elem)
-                                              ;(js/console.log elem)
-                                              ;(js/console.log (.-current elem))
-                                              ;(js/console.log (.getBoundingClientRect elem))
-                                              ))}
+                            :ref #(reset! (r/cursor !panel-state [:ref]) %)}
                            [controls]
                            [background
-                            {:color "#aaa"}]]]])
-      :ref (fn [e] (js/console.log e))})))
+                            {:color "#aaa"}]]]])})))
 
 (defn draw-graph []
   [:div
